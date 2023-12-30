@@ -27,7 +27,7 @@ public class OrderService {
     @Autowired
     private OrderRepository orderRepository;
     @Autowired
-    private WebClient webClient;
+    private WebClient.Builder webClientBuilder;
 
     public void placeOrder(OrderRequestDto orderRequestDto){
         Order order = new Order();
@@ -39,7 +39,7 @@ public class OrderService {
                 .map(LineItems :: getItemCode)
                 .collect(Collectors.toList());
         //external call to inventory service to check the availability of items
-        InventoryResponseDto[] inventoryResponseDtoArray = webClient.get().uri("http://localhost:8082/api/inventory",
+        InventoryResponseDto[] inventoryResponseDtoArray = webClientBuilder.build().get().uri("http://inventory-services/api/inventory",
                         uriBuilder -> uriBuilder.queryParam("itemList", itemCodes).build())
                 .retrieve().
                 bodyToMono(InventoryResponseDto[].class)
