@@ -5,9 +5,11 @@ import com.rav.orderservices.dto.InventoryResponseDto;
 import com.rav.orderservices.dto.OrderRequestDto;
 import com.rav.orderservices.entity.LineItems;
 import com.rav.orderservices.entity.Order;
+import com.rav.orderservices.event.OrderPlacedEvent;
 import com.rav.orderservices.repo.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -28,8 +30,10 @@ public class OrderService {
     private OrderRepository orderRepository;
     @Autowired
     private WebClient.Builder webClientBuilder;
+    @Autowired
+    private KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
-    public void placeOrder(OrderRequestDto orderRequestDto){
+    public String placeOrder(OrderRequestDto orderRequestDto){
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
         List<LineItems> lineItemsList = orderAssembler.assembleOrderRequestDto(orderRequestDto);
@@ -49,6 +53,8 @@ public class OrderService {
                 (InventoryResponseDto::isInStock);
         if(allProductsInStock){
             orderRepository.save(order);
+            kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
+            return "Order placed successfully";
         } else{
             throw new IllegalArgumentException("Product is not in stock, please try again later");
         }
